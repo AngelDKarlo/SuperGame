@@ -2,19 +2,18 @@
 #include <stdbool.h>
 #include <stdlib.h>  // Para rand(), srand()
 #include <time.h>    // Para time()
-//hola mundo
-//hola enciso
+
 // Constantes para el juego
 #define MAX_VIDA_INICIAL 100
 #define DANIO_ESPADA_MIN 2
 #define DANIO_ESPADA_MAX 30
 #define DANIO_LOBO_MIN 10
-#define DANIO_LOBO_MAX 20
+#define DANIO_LOBO_MAX  20
 #define DANIO_OGRO_MIN 15
 #define DANIO_OGRO_MAX 25
 #define DANIO_DRAGON_MIN 25
 #define DANIO_DRAGON_MAX 60
-#define CURA_POCION_BASE 40
+#define CURA_POCION_BASE 50
 #define CURA_POCION_MAX 100
 #define PROBABILIDAD_CURA_MEJORADA 40 // Probabilidad en % de que la poción cure más
 #define VIDA_LOBO 75
@@ -43,12 +42,15 @@ void mostrarDivisor() {
 }
 
 // Función para mostrar el estado actual del jugador y el enemigo
-void mostrarEstado(int hp, int ep, int pociones, bool escudoActivo, int turnosEscudo, const char *nombreEnemigo, int monedas, int filoEspada) {
+void mostrarEstado(int hp, int ep, int pociones, bool escudoActivo, int turnosEscudo, const char *nombreEnemigo, int monedas, int filoEspada, bool fuerzaActiva, int turnosFuerza) {
     printf("\n--- Estado Actual ---\n");
     if (escudoActivo) {
         printf("Tu vida: %d (ESCUDO ACTIVO - %d turnos restantes) | ", hp, turnosEscudo);
     } else {
         printf("Tu vida: %d | ", hp);
+    }
+    if (fuerzaActiva) {
+        printf("FUERZA ACTIVA (%d turnos restantes) | ", turnosFuerza);
     }
     printf("Vida del %s: %d | Pociones: %d | Monedas: %d | Filo de la Espada: +%d daño\n", nombreEnemigo, ep, pociones, monedas, filoEspada * MEJORA_FILO_ESPADA);
 }
@@ -56,10 +58,9 @@ void mostrarEstado(int hp, int ep, int pociones, bool escudoActivo, int turnosEs
 // Función para calcular el daño con rango y crítico
 int calcularDanio(int min, int max, int danioExtra, const char *atacante, const char *objetivo) {
     int danio = min + rand() % (max - min + 1) + danioExtra; // Daño aleatorio entre min y max + daño extra
-    int max1 = 15, min1 = 1;
-    int r = rand() % (max1 - min1 + 1);
-    if (r == 13 || r == 14 || r == 15) {
-        danio = danio * 2;
+    int probCritico = rand() % 100;
+    if (probCritico < 15) { // 15% de probabilidad de golpe crítico
+        danio *= 2;
         printf("¡Golpe crítico de %s! 💥 %s recibe %d de daño.\n", atacante, objetivo, danio);
     } else {
         printf("%s ataca a %s y le hace %d de daño.\n", atacante, objetivo, danio);
@@ -68,13 +69,13 @@ int calcularDanio(int min, int max, int danioExtra, const char *atacante, const 
 }
 
 // Función para el turno del jugador
-void turnoJugador(int *hp, int *ep, int *pociones, bool *cargarMatadragones, bool *escudoDisponible, bool *escudoActivo, int *turnosEscudo, int danioExtra, int filoEspada) {
+void turnoJugador(int *hp, int *ep, int *pociones, bool *cargarMatadragones, bool *escudoDisponible, bool *escudoActivo, int *turnosEscudo, int *danioExtra, int filoEspada, bool *fuerzaActiva, int *turnosFuerza, bool fuerzaComprada) {
     int opcion;
 
     // Si la matadragones fue activada en el turno anterior, atacar automáticamente
     if (*cargarMatadragones) {
         printf("¡Ataque automático con la matadragones!\n");
-        int danio = calcularDanio(DANIO_ESPADA_MIN, DANIO_ESPADA_MAX, danioExtra + (filoEspada * MEJORA_FILO_ESPADA), "Jugador", "Enemigo");
+        int danio = calcularDanio(DANIO_ESPADA_MIN, DANIO_ESPADA_MAX, *danioExtra + (filoEspada * MEJORA_FILO_ESPADA), "Jugador", "Enemigo");
         *ep -= danio;
         *cargarMatadragones = false; // Reiniciar el estado
         return;
@@ -82,20 +83,23 @@ void turnoJugador(int *hp, int *ep, int *pociones, bool *cargarMatadragones, boo
 
     // Menú normal del jugador
     printf("\n¿Qué deseas hacer?\n");
-    printf("1 - Espadazo 🗡️ (haces entre %d y %d de daño)\n", DANIO_ESPADA_MIN + danioExtra + (filoEspada * MEJORA_FILO_ESPADA), DANIO_ESPADA_MAX + danioExtra + (filoEspada * MEJORA_FILO_ESPADA));
+    printf("1 - Espadazo 🗡️ (haces entre %d y %d de daño)\n", DANIO_ESPADA_MIN + *danioExtra + (filoEspada * MEJORA_FILO_ESPADA), DANIO_ESPADA_MAX + *danioExtra + (filoEspada * MEJORA_FILO_ESPADA));
     printf("2 - Usar poción 🍷 (cura hasta %d de vida, tienes %d pociones)\n", CURA_POCION_MAX, *pociones);
     printf("3 - Usar la matadragones\n");
     if (*escudoDisponible) {
         printf("4 - Activar ESCUDO INVENCIBLE (protege contra 3 ataques enemigos)\n");
     }
+    if (fuerzaComprada && !*fuerzaActiva) {
+        printf("5 - USAR FUERZA (+%d de daño durante 3 turnos)\n", MEJORA_DANIO_POCION);
+    }
     printf("Elige una opción: ");
-    while (scanf("%d", &opcion) != 1 || (opcion < 1 || opcion > 4) || (!*escudoDisponible && opcion == 4)) {
+    while (scanf("%d", &opcion) != 1 || (opcion < 1 || opcion > 5) || (!*escudoDisponible && opcion == 4)) {
         printf("❌ Opción inválida. Introduce una opción válida: ");
         while (getchar() != '\n'); // Limpiar el buffer de entrada
     }
 
     if (opcion == 1) {
-        int danio = calcularDanio(DANIO_ESPADA_MIN, DANIO_ESPADA_MAX, danioExtra + (filoEspada * MEJORA_FILO_ESPADA), "Jugador", "Enemigo");
+        int danio = calcularDanio(DANIO_ESPADA_MIN, DANIO_ESPADA_MAX, *danioExtra + (filoEspada * MEJORA_FILO_ESPADA), "Jugador", "Enemigo");
         *ep -= danio;
     } else if (opcion == 2) {
         if (*pociones > 0) {
@@ -118,8 +122,13 @@ void turnoJugador(int *hp, int *ep, int *pociones, bool *cargarMatadragones, boo
     } else if (opcion == 4 && *escudoDisponible) {
         printf("🛡️ ¡ESCUDO INVENCIBLE ACTIVADO! Estarás protegido contra los próximos 3 ataques enemigos.\n");
         *escudoActivo = true;
-        *turnosEscudo = 4;
+        *turnosEscudo = 3;
         *escudoDisponible = false; // El escudo solo puede usarse una vez
+    } else if (opcion == 5 && fuerzaComprada && !*fuerzaActiva) {
+        printf("💪 ¡FUERZA ACTIVADA! Tu daño aumenta por 3 turnos.\n");
+        *danioExtra += MEJORA_DANIO_POCION;
+        *fuerzaActiva = true;
+        *turnosFuerza = 3;
     }
 }
 
@@ -139,11 +148,11 @@ void turnoEnemigo(int *hp, int danioMin, int danioMax, const char *nombreEnemigo
 }
 
 // Función para la tienda
-void tienda(int *monedas, int *vidaMaxima, int *danioExtra, int *hp, int *filoEspada) {
+void tienda(int *monedas, int *vidaMaxima, int *danioExtra, int *hp, int *filoEspada, bool *fuerzaComprada) {
     int opcion;
     printf("\n🎉 ¡Bienvenido a la tienda! Tienes %d monedas.\n", *monedas);
     printf("1 - Comprar ARMADURA (%d monedas): Aumenta tu vida máxima en %d puntos.\n", COSTO_ARMADURA, MEJORA_VIDA_ARMADURA);
-    printf("2 - Comprar POCIÓN DE FUERZA (%d monedas): Aumenta tu daño base en %d puntos.\n", COSTO_POCION_FUERZA, MEJORA_DANIO_POCION);
+    printf("2 - Comprar POCIÓN DE FUERZA (%d monedas): Activa +20 de daño durante 3 turnos.\n", COSTO_POCION_FUERZA);
     printf("3 - Mejorar FILO DE LA ESPADA (%d monedas): Aumenta tu daño base en +%d puntos por cada nivel.\n", COSTO_FILO_ESPADA, MEJORA_FILO_ESPADA);
     printf("4 - No comprar nada y continuar.\n");
     printf("Elige una opción: ");
@@ -158,11 +167,10 @@ void tienda(int *monedas, int *vidaMaxima, int *danioExtra, int *hp, int *filoEs
         printf("🛡️ ¡Has comprado la ARMADURA! Tu vida máxima ahora es %d.\n", *vidaMaxima);
     } else if (opcion == 1 && *monedas < COSTO_ARMADURA) {
         printf("❌ No tienes suficientes monedas para comprar la ARMADURA.\n");
-    } 
-    else if (opcion == 2 && *monedas >= COSTO_POCION_FUERZA) {
-        *danioExtra += MEJORA_DANIO_POCION;
+    } else if (opcion == 2 && *monedas >= COSTO_POCION_FUERZA) {
         *monedas -= COSTO_POCION_FUERZA;
-        printf("💪 ¡Has comprado la POCIÓN DE FUERZA! Tu daño base ahora es %d.\n", DANIO_ESPADA_MIN + *danioExtra + (*filoEspada * MEJORA_FILO_ESPADA));
+        *fuerzaComprada = true;
+        printf("💪 ¡Has comprado la POCIÓN DE FUERZA! Actívala en el menú cuando quieras.\n");
     } else if (opcion == 2 && *monedas < COSTO_POCION_FUERZA) {
         printf("❌ No tienes suficientes monedas para comprar la POCIÓN DE FUERZA.\n");
     } else if (opcion == 3 && *monedas >= COSTO_FILO_ESPADA) {
@@ -176,37 +184,41 @@ void tienda(int *monedas, int *vidaMaxima, int *danioExtra, int *hp, int *filoEs
     }
 
     // Restaurar vida y dar monedas adicionales
-    *hp = *vidaMaxima;
+    if (*hp < 100){
+        *hp = *vidaMaxima;
+    }
     *monedas += RECOMPENSA_MONEDAS_TIENDA;
     printf("❤️ ¡Tu vida ha sido restaurada a %d! Ahora tienes %d monedas.\n", *hp, *monedas);
 }
 
 // Función para generar un nuevo enemigo
-void generarEnemigo(const char **nombreEnemigo, int *vidaEnemigo, int *danioEnemigoMin, int *danioEnemigoMax, int *recompensaMonedas) {
-    int tipoEnemigo = rand() % 3; // 0 = lobo, 1 = ogro, 2 = dragón
-    bool dragon;
-    switch (tipoEnemigo) {
-        case 0:
-            *nombreEnemigo = "lobo 🐺";
-            *vidaEnemigo = VIDA_LOBO;
-            *danioEnemigoMin = DANIO_LOBO_MIN;
-            *danioEnemigoMax = DANIO_LOBO_MAX;
-            *recompensaMonedas = 10;
-            break;
-        case 1:
-            *nombreEnemigo = "ogro 🧌";
-            *vidaEnemigo = VIDA_OGRO;
-            *danioEnemigoMin = DANIO_OGRO_MIN;
-            *danioEnemigoMax = DANIO_OGRO_MAX;
-            *recompensaMonedas = 15;
-            break;
-        case 2:
-            *nombreEnemigo = "dragón 🔥";
-            *vidaEnemigo = VIDA_DRAGON;
-            *danioEnemigoMin = DANIO_DRAGON_MIN;
-            *danioEnemigoMax = DANIO_DRAGON_MAX;
-            *recompensaMonedas = 20;
-            break;
+void generarEnemigo(const char **nombreEnemigo, int *vidaEnemigo, int *danioEnemigoMin, int *danioEnemigoMax, int *recompensaMonedas, int enemigosDerrotados) {
+    if (enemigosDerrotados % 5 == 0 && enemigosDerrotados != 0) {
+        // Aparece el dragón cada 5 enemigos derrotados
+        *nombreEnemigo = "dragón 🔥";
+        *vidaEnemigo = VIDA_DRAGON;
+        *danioEnemigoMin = DANIO_DRAGON_MIN;
+        *danioEnemigoMax = DANIO_DRAGON_MAX;
+        *recompensaMonedas = 20;
+    } else {
+        // Generar un enemigo aleatorio
+        int tipoEnemigo = rand() % 2; // 0 = lobo, 1 = ogro
+        switch (tipoEnemigo) {
+            case 0:
+                *nombreEnemigo = "lobo 🐺";
+                *vidaEnemigo = VIDA_LOBO;
+                *danioEnemigoMin = DANIO_LOBO_MIN;
+                *danioEnemigoMax = DANIO_LOBO_MAX;
+                *recompensaMonedas = 10;
+                break;
+            case 1:
+                *nombreEnemigo = "ogro 🧌";
+                *vidaEnemigo = VIDA_OGRO;
+                *danioEnemigoMin = DANIO_OGRO_MIN;
+                *danioEnemigoMax = DANIO_OGRO_MAX;
+                *recompensaMonedas = 15;
+                break;
+        }
     }
     printf("\nUn nuevo enemigo aparece: %s\n", *nombreEnemigo);
     printf("Vida del %s: %d\n", *nombreEnemigo, *vidaEnemigo);
@@ -226,6 +238,9 @@ int main() {
     int filoEspada = 0;              // Nivel de Filo de la Espada
     int enemigosDerrotados = 0;      // Contador de enemigos derrotados
     int recompensaMonedas = 0;       // Recompensa por derrotar al enemigo
+    bool fuerzaComprada = false;     // Variable para controlar si se compró la poción de fuerza
+    bool fuerzaActiva = false;       // Variable para controlar si la fuerza está activa
+    int turnosFuerza = 0;            // Contador de turnos restantes de la fuerza
 
     // Inicializar la semilla para números aleatorios
     srand(time(NULL));
@@ -238,50 +253,56 @@ int main() {
     scanf("%d", &s);
 
     // Tienda al inicio del juego
-    tienda(&monedas, &vidaMaxima, &danioExtra, &hp, &filoEspada);
+    tienda(&monedas, &vidaMaxima, &danioExtra, &hp, &filoEspada, &fuerzaComprada);
 
-    // Generar el primer enemigo
-    generarEnemigo(&nombreEnemigo, &vidaEnemigo, &danioEnemigoMin, &danioEnemigoMax, &recompensaMonedas);
+        // Generar el primer enemigo
+        generarEnemigo(&nombreEnemigo, &vidaEnemigo, &danioEnemigoMin, &danioEnemigoMax, &recompensaMonedas, enemigosDerrotados);
 
-    // Inicializar vida del jugador
-    inicializarVida(&hp, "Tu vida", vidaMaxima);
-
-    // Ciclo principal del combate
-    do {
-        ep = vidaEnemigo; // Restaurar la vida del enemigo al máximo
+        // Inicializar vida del jugador
+        inicializarVida(&hp, "Tu vida", vidaMaxima);
+    
+        // Ciclo principal del combate
         do {
-            mostrarDivisor(); // Divisor visual antes de cada turno
-            mostrarEstado(hp, ep, pociones, escudoActivo, turnosEscudo, nombreEnemigo, monedas, filoEspada);
-            turnoJugador(&hp, &ep, &pociones, &cargarMatadragones, &escudoDisponible, &escudoActivo, &turnosEscudo, danioExtra, filoEspada);
-            if (ep > 0) {
-                turnoEnemigo(&hp, danioEnemigoMin, danioEnemigoMax, nombreEnemigo, &escudoActivo, &turnosEscudo);
+            ep = vidaEnemigo; // Restaurar la vida del enemigo al máximo
+            do {
+                mostrarDivisor(); // Divisor visual antes de cada turno
+                mostrarEstado(hp, ep, pociones, escudoActivo, turnosEscudo, nombreEnemigo, monedas, filoEspada, fuerzaActiva, turnosFuerza);
+                turnoJugador(&hp, &ep, &pociones, &cargarMatadragones, &escudoDisponible, &escudoActivo, &turnosEscudo, &danioExtra, filoEspada, &fuerzaActiva, &turnosFuerza, fuerzaComprada);
+                if (ep > 0) {
+                    turnoEnemigo(&hp, danioEnemigoMin, danioEnemigoMax, nombreEnemigo, &escudoActivo, &turnosEscudo);
+                }
+                if (fuerzaActiva) {
+                    turnosFuerza--;
+                    if (turnosFuerza == 0) {
+                        fuerzaActiva = false;
+                        danioExtra -= MEJORA_DANIO_POCION;
+                        printf("💥 ¡La FUERZA ha expirado! Tu daño vuelve a la normalidad.\n");
+                    }
+                }
+                printf("\nPresiona Enter para continuar...");
+                while (getchar() != '\n'); // Limpiar el buffer
+                getchar(); // Esperar la entrada del usuario
+                clearconsole();
+            } while (hp > 0 && ep > 0);
+    
+            // Resultado del combate
+            mostrarDivisor();
+            if (hp <= 0) {
+                printf("\n💀 Has sido derrotado... Game Over.\n");
+                break;
+            } else {
+                printf("\n🏆 ¡Venciste al %s! ¡Eres un héroe!\n", nombreEnemigo);
+                enemigosDerrotados++;
+                monedas += recompensaMonedas;
+                printf("🎉 ¡Ganas %d monedas! Total de monedas: %d\n", recompensaMonedas, monedas);
+    
+                // Ir a la tienda después de cada victoria
+                tienda(&monedas, &vidaMaxima, &danioExtra, &hp, &filoEspada, &fuerzaComprada);
+    
+                // Generar un nuevo enemigo
+                generarEnemigo(&nombreEnemigo, &vidaEnemigo, &danioEnemigoMin, &danioEnemigoMax, &recompensaMonedas, enemigosDerrotados);
             }
-            printf("\nPresiona Enter para continuar...");
-            while (getchar() != '\n'); // Limpiar el buffer
-            getchar(); // Esperar la entrada del usuario
-            clearconsole();
-        } while (hp > 0 && ep > 0);
-
-        // Resultado del combate
-        mostrarDivisor();
-        if (hp <= 0) {
-            printf("\n💀 Has sido derrotado... Game Over.\n");
-            break;
-        } else {
-            printf("\n🏆 ¡Venciste al %s! ¡Eres un héroe!\n", nombreEnemigo);
-            monedas += recompensaMonedas;
-            printf("💰 Recibes %d monedas. Total de monedas: %d\n", recompensaMonedas, monedas);
-            enemigosDerrotados++;
-
-            // Entrar a la tienda después de derrotar a 2 enemigos
-            if (enemigosDerrotados == 2) {
-                tienda(&monedas, &vidaMaxima, &danioExtra, &hp, &filoEspada);
-                enemigosDerrotados = 0; // Reiniciar el contador
-            }
-
-            generarEnemigo(&nombreEnemigo, &vidaEnemigo, &danioEnemigoMin, &danioEnemigoMax, &recompensaMonedas);
-        }
-    } while (true);
-
-    return 0;
-}
+        } while (hp > 0);
+    
+        return 0;
+    }
