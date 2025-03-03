@@ -3,6 +3,7 @@
 #include <stdlib.h>  // Para rand(), srand()
 #include <time.h>    // Para time()
 //hola mundo
+//hola enciso
 // Constantes para el juego
 #define MAX_VIDA_INICIAL 100
 #define DANIO_ESPADA_MIN 2
