@@ -2,10 +2,10 @@
 #include <stdbool.h>
 #include <stdlib.h>  // Para rand(), srand()
 #include <time.h>    // Para time()
-
+//hola mundo
 // Constantes para el juego
 #define MAX_VIDA_INICIAL 100
-#define DANIO_ESPADA_MIN 1
+#define DANIO_ESPADA_MIN 2
 #define DANIO_ESPADA_MAX 30
 #define DANIO_LOBO_MIN 10
 #define DANIO_LOBO_MAX 20
